@@ -34,6 +34,7 @@ const els = {
   shuffleToggle: $('shuffleToggle'), shuffleOptToggle: $('shuffleOptToggle'),
   fontSizeVal: $('fontSizeVal'), fontSizeSlider: $('fontSizeSlider'), accentSwatches: $('accentSwatches'),
   autoTimerFullscreenToggle: $('autoTimerFullscreenToggle'),
+  timerDefaultToggle: $('timerDefaultToggle'), annotateDefaultToggle: $('annotateDefaultToggle'),
   resetProgressBtn: $('resetProgressBtn'), loadNewBtn: $('loadNewBtn'),
 
   timerWidget: $('timerWidget'), timerBody: $('timerBody'), timerDragHandle: $('timerDragHandle'), timerModeBtn: $('timerModeBtn'),
@@ -42,9 +43,10 @@ const els = {
   timerDigital: $('timerDigital'), timerDisplay: $('timerDisplay'), countdownSetup: $('countdownSetup'),
   customSecs: $('customSecs'), timerStartBtn: $('timerStartBtn'), timerPauseBtn: $('timerPauseBtn'),
   timerResetBtn: $('timerResetBtn'), autoTimerToggle: $('autoTimerToggle'),
+  timerOpacitySlider: $('timerOpacitySlider'),
 
   annotateLayer: $('annotateLayer'), annotateCanvas: $('annotateCanvas'), laserDot: $('laserDot'),
-  penCursor: $('penCursor'),
+  penCursor: $('penCursor'), penCursorDot: $('penCursorDot'), penCursorBadge: $('penCursorBadge'),
   annotateToolbar: $('annotateToolbar'), annotateColors: $('annotateColors'), strokeWidth: $('strokeWidth'),
   undoBtn: $('undoBtn'), redoBtn: $('redoBtn'), clearBtn: $('clearBtn'), verticalModeBtn: $('verticalModeBtn'),
   pngExportBtn: $('pngExportBtn'), annotateExitBtn: $('annotateExitBtn'), downloadLink: $('downloadLink'),
@@ -76,6 +78,7 @@ const state = {
   settings: {
     darkMode: false, loadImages: true, shuffleQuestions: false, shuffleOptions: false,
     fontSize: 16, accent: ACCENTS[0], autoTimerFullscreen: false,
+    timerDefaultOn: false, annotateDefaultOn: false, timerOpacity: 1,
   },
   timer: {
     mode: 'stopwatch', running: false, startTs: 0, elapsedBeforePause: 0,
@@ -282,6 +285,8 @@ function loadFromJSON(json, opts = {}) {
     els.loadScreen.hidden = true;
     els.appShell.hidden = false;
     renderQuestion();
+    if (state.settings.timerDefaultOn) openTimer();
+    if (state.settings.annotateDefaultOn) enterAnnotate();
     if (!opts.silent) showToast(`Loaded ${questions.length} question${questions.length === 1 ? '' : 's'}`);
     if (!opts.skipPersist) {
       try { localStorage.setItem('mcq_last_json', JSON.stringify(json)); } catch (e) { /* quota exceeded — non-fatal */ }
@@ -596,8 +601,17 @@ els.cardBack.addEventListener('click', (e) => {
 });
 els.fullscreenBtn.addEventListener('click', () => setFullscreen(true));
 els.fsExitBtn.addEventListener('click', () => setFullscreen(false));
+// Some browsers (and most headless/automated ones) grant native fullscreen and
+// then immediately auto-revoke it since there's no real window to fill. Only
+// treat a fullscreenchange-driven exit as a genuine user action (e.g. they hit
+// the OS's own "Exit fullscreen" control) if we were natively fullscreen for a
+// little while first — otherwise our own UI mode ends up flickering straight
+// back off right after the button is pressed.
+let nativeFullscreenEnteredAt = 0;
 document.addEventListener('fullscreenchange', () => {
-  if (!document.fullscreenElement && state.isFullscreen) setFullscreen(false);
+  if (document.fullscreenElement) { nativeFullscreenEnteredAt = performance.now(); return; }
+  const heldLongEnough = nativeFullscreenEnteredAt && (performance.now() - nativeFullscreenEnteredAt > 500);
+  if (heldLongEnough && state.isFullscreen) setFullscreen(false);
 });
 els.backBtn.addEventListener('click', goToLoadScreen);
 els.loadNewBtn.addEventListener('click', goToLoadScreen);
@@ -687,6 +701,19 @@ els.shuffleOptToggle.addEventListener('change', () => {
 });
 els.autoTimerFullscreenToggle.addEventListener('change', () => {
   state.settings.autoTimerFullscreen = els.autoTimerFullscreenToggle.checked;
+  persistSettings();
+});
+els.timerDefaultToggle.addEventListener('change', () => {
+  state.settings.timerDefaultOn = els.timerDefaultToggle.checked;
+  persistSettings();
+});
+els.annotateDefaultToggle.addEventListener('change', () => {
+  state.settings.annotateDefaultOn = els.annotateDefaultToggle.checked;
+  persistSettings();
+});
+els.timerOpacitySlider.addEventListener('input', () => {
+  state.settings.timerOpacity = Number(els.timerOpacitySlider.value) / 100;
+  els.timerWidget.style.setProperty('--timer-opacity', state.settings.timerOpacity);
   persistSettings();
 });
 els.fontSizeSlider.addEventListener('input', () => {
@@ -953,6 +980,27 @@ function drawSegment(c, p0, p1, s) {
   c.beginPath(); c.moveTo(p0.x, p0.y); c.lineTo(p1.x, p1.y); c.stroke();
   c.restore();
 }
+// Smooths freehand ink by drawing a quadratic curve through the midpoints of
+// three consecutive samples instead of straight segments — removes the
+// "polygonal" look that raw point-to-point lines have on a fast stylus stroke.
+function drawSmoothSegment(c, p0, p1, p2, s) {
+  c.save();
+  if (s.tool === 'eraser') { c.globalCompositeOperation = 'destination-out'; c.globalAlpha = 1; }
+  else if (s.tool === 'highlighter') { c.globalCompositeOperation = 'source-over'; c.globalAlpha = 0.35; }
+  else { c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; }
+  c.strokeStyle = s.color;
+  c.lineCap = 'round'; c.lineJoin = 'round';
+  const pressure = ((p1.pressure ?? 0.5) + (p2.pressure ?? 0.5)) / 2;
+  const w = s.tool === 'highlighter' ? s.width * 2.6 : s.width * (0.4 + pressure * 1.1);
+  c.lineWidth = Math.max(1, w);
+  const mid1 = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 };
+  const mid2 = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+  c.beginPath();
+  c.moveTo(mid1.x, mid1.y);
+  c.quadraticCurveTo(p1.x, p1.y, mid2.x, mid2.y);
+  c.stroke();
+  c.restore();
+}
 function drawDot(c, p, s) {
   c.save();
   if (s.tool === 'eraser') c.globalCompositeOperation = 'destination-out';
@@ -996,8 +1044,10 @@ function drawText(c, s) {
 function renderStroke(c, s) {
   if (s.tool === 'text') return drawText(c, s);
   if (s.tool === 'pen' || s.tool === 'highlighter' || s.tool === 'eraser') {
-    if (s.points.length === 1) return drawDot(c, s.points[0], s);
-    for (let i = 1; i < s.points.length; i++) drawSegment(c, s.points[i - 1], s.points[i], s);
+    const pts = s.points;
+    if (pts.length === 1) return drawDot(c, pts[0], s);
+    if (pts.length === 2) return drawSegment(c, pts[0], pts[1], s);
+    for (let i = 2; i < pts.length; i++) drawSmoothSegment(c, pts[i - 2], pts[i - 1], pts[i], s);
     return;
   }
   drawShape(c, s);
@@ -1076,14 +1126,21 @@ els.annotateCanvas.addEventListener('pointermove', (e) => {
   if (state.annotate.tool === 'laser') { if (drawingPointer) showLaser(e); return; }
   if (!drawingPointer || !currentStroke) return;
   if (palmRejected(e)) return;
-  const pos = getCanvasPos(e);
   if (currentStroke.points) {
+    // Coalesced events recover the sub-frame samples the OS captured between
+    // animation frames — without them, a fast stylus stroke looks faceted.
+    const rawEvents = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    const events = rawEvents.length ? rawEvents : [e];
     const pts = currentStroke.points;
-    const prev = pts[pts.length - 1];
-    const p = { x: pos.x, y: pos.y, pressure: normPressure(e) };
-    pts.push(p);
-    drawSegment(ctx, prev, p, currentStroke);
+    for (const ev of events) {
+      const p2 = getCanvasPos(ev);
+      pts.push({ x: p2.x, y: p2.y, pressure: normPressure(ev) });
+      const n = pts.length;
+      if (n === 2) drawSegment(ctx, pts[0], pts[1], currentStroke);
+      else if (n >= 3) drawSmoothSegment(ctx, pts[n - 3], pts[n - 2], pts[n - 1], currentStroke);
+    }
   } else {
+    const pos = getCanvasPos(e);
     currentStroke.x2 = pos.x; currentStroke.y2 = pos.y;
     redrawAll(); drawShape(ctx, currentStroke);
   }
@@ -1119,7 +1176,10 @@ function updatePenCursor(e) {
     hidePenCursor();
     return;
   }
-  els.penCursor.textContent = TOOL_EMOJI[state.annotate.tool] || '✏️';
+  // A precise dot marks the exact tip position (no glyph orientation to get
+  // "backwards"); a small badge off to the side hints at the active tool.
+  els.penCursorDot.style.background = state.annotate.color;
+  els.penCursorBadge.textContent = TOOL_EMOJI[state.annotate.tool] || '';
   els.penCursor.style.left = e.clientX + 'px';
   els.penCursor.style.top = e.clientY + 'px';
   els.penCursor.hidden = false;
@@ -1279,6 +1339,10 @@ function init() {
   els.fontSizeSlider.value = state.settings.fontSize;
   els.fontSizeVal.textContent = state.settings.fontSize;
   els.autoTimerFullscreenToggle.checked = state.settings.autoTimerFullscreen;
+  els.timerDefaultToggle.checked = state.settings.timerDefaultOn;
+  els.annotateDefaultToggle.checked = state.settings.annotateDefaultOn;
+  els.timerOpacitySlider.value = Math.round(state.settings.timerOpacity * 100);
+  els.timerWidget.style.setProperty('--timer-opacity', state.settings.timerOpacity);
   applyTheme();
   buildAccentSwatches();
   buildAnnotateColors();

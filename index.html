@@ -115,6 +115,15 @@
 
     <button id="flipBtn" class="btn outline" hidden>↩ Show Explanation</button>
     <button id="nextBtn" class="btn primary" hidden>Next Question →</button>
+
+    <div id="annotateLayer" class="annotate-layer" hidden>
+      <canvas id="annotateCanvas"></canvas>
+      <div id="laserDot" class="laser-dot" hidden></div>
+      <div id="penCursor" class="pen-cursor" hidden>
+        <span id="penCursorDot" class="pen-cursor-dot"></span>
+        <span id="penCursorBadge" class="pen-cursor-badge"></span>
+      </div>
+    </div>
   </main>
 
   <div id="toast" class="toast" hidden></div>
@@ -165,6 +174,14 @@
         <div class="setting-row">
           <span>Show timer on fullscreen</span>
           <label class="switch"><input type="checkbox" id="autoTimerFullscreenToggle"><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <span>Timer on by default</span>
+          <label class="switch"><input type="checkbox" id="timerDefaultToggle"><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <span>Annotate mode by default</span>
+          <label class="switch"><input type="checkbox" id="annotateDefaultToggle"><span class="slider"></span></label>
         </div>
         <div class="setting-row">
           <button class="btn outline" id="resetProgressBtn">Reset score &amp; bookmarks</button>
@@ -222,15 +239,13 @@
         <input type="checkbox" id="autoTimerToggle">
         <span>Auto-restart on next question</span>
       </label>
+      <label class="auto-timer-row opacity-row">
+        <span>Opacity</span>
+        <input type="range" id="timerOpacitySlider" min="20" max="100" value="100">
+      </label>
     </div>
   </div>
   <!-- Annotate mode -->
-  <div id="annotateLayer" class="annotate-layer" hidden>
-    <canvas id="annotateCanvas"></canvas>
-    <div id="laserDot" class="laser-dot" hidden></div>
-    <div id="penCursor" class="pen-cursor" hidden></div>
-  </div>
-
   <div id="annotateToolbar" class="annotate-toolbar" hidden>
     <div class="tool-group">
       <button class="tool-btn active" data-tool="pen" title="Pen">✏️</button>

@@ -7,7 +7,12 @@
 <meta name="theme-color" content="#1565C0">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icon.svg">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MCQ Annotate">
+<meta name="mobile-web-app-capable" content="yes">
 <link rel="stylesheet" href="vendor/katex/katex.min.css">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -140,11 +145,11 @@
         </div>
         <div class="setting-row">
           <span>Shuffle questions</span>
-          <label class="switch"><input type="checkbox" id="shuffleToggle"></label>
+          <label class="switch"><input type="checkbox" id="shuffleToggle"><span class="slider"></span></label>
         </div>
         <div class="setting-row">
           <span>Shuffle options</span>
-          <label class="switch"><input type="checkbox" id="shuffleOptToggle"></label>
+          <label class="switch"><input type="checkbox" id="shuffleOptToggle"><span class="slider"></span></label>
         </div>
         <div class="setting-row column">
           <span>Font size <b id="fontSizeVal">16</b>px</span>
@@ -153,6 +158,10 @@
         <div class="setting-row column">
           <span>Accent color</span>
           <div id="accentSwatches" class="swatch-row"></div>
+        </div>
+        <div class="setting-row">
+          <span>Show timer on fullscreen</span>
+          <label class="switch"><input type="checkbox" id="autoTimerFullscreenToggle"><span class="slider"></span></label>
         </div>
         <div class="setting-row">
           <button class="btn outline" id="resetProgressBtn">Reset score &amp; bookmarks</button>

@@ -86,6 +86,7 @@ img { max-width: 100%; }
 .icon-btn { background: none; border: none; font-size: 20px; width: 40px; height: 40px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; color: var(--on-surface-variant); }
 .icon-btn:hover { background: var(--surface-variant); }
 .icon-btn.sm { width: 30px; height: 30px; font-size: 15px; }
+.icon-btn.active { background: color-mix(in srgb, var(--accent) 18%, transparent); box-shadow: inset 0 0 0 1.5px var(--accent); }
 
 /* ────────────────────────────── App shell ────────────────────────────── */
 .app-shell { min-height: 100vh; display: flex; flex-direction: column; position: relative; }
@@ -200,12 +201,14 @@ img { max-width: 100%; }
   position: fixed; top: 70px; right: 16px; width: 230px;
   background: var(--surface); border-radius: 16px; box-shadow: var(--shadow);
   z-index: 80; overflow: hidden;
+  resize: both; min-width: 190px; min-height: 300px; max-width: 480px; max-height: 640px;
 }
-.timer-drag { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; background: var(--surface-variant); cursor: grab; }
+.timer-drag { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; background: var(--surface-variant); cursor: grab; touch-action: none; }
 .timer-drag-label { font-size: 13px; font-weight: 600; }
 .timer-head-btns { display: flex; gap: 2px; }
-.timer-body { padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.timer-analog { width: 160px; }
+.timer-body { padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 10px; height: calc(100% - 47px); }
+.timer-analog { flex: 1; width: 100%; max-width: 260px; display: flex; align-items: center; justify-content: center; min-height: 0; }
+.timer-analog svg { width: 100%; height: 100%; max-height: 280px; }
 .clock-face { fill: var(--surface); stroke: var(--outline); stroke-width: 3; }
 .hand { stroke-linecap: round; }
 .hand-minute { stroke: var(--on-surface); stroke-width: 5; }
@@ -215,8 +218,18 @@ img { max-width: 100%; }
 .tick-major { stroke-width: 2.5; }
 .tick-minor { stroke-width: 1; opacity: .5; }
 .clock-num { font-size: 13px; fill: var(--on-surface-variant); text-anchor: middle; dominant-baseline: middle; font-weight: 600; }
-.timer-digital { display: flex; align-items: center; justify-content: center; height: 120px; }
-.timer-display { font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.timer-digital { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 90px; width: 100%; }
+.timer-display {
+  font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums;
+  font-family: 'Courier New', ui-monospace, SFMono-Regular, monospace;
+  letter-spacing: 1px; color: var(--accent);
+  background: var(--surface-variant);
+  padding: 0.35em 0.6em; border-radius: 14px;
+  box-shadow: inset 0 0 0 1.5px var(--outline);
+  white-space: nowrap;
+}
+.timer-display .colon { animation: blink 1s steps(1) infinite; padding: 0 1px; }
+.timer-display.ended { color: var(--incorrect); animation: blink 0.6s steps(1) infinite; }
 .timer-tabs { display: flex; gap: 4px; background: var(--surface-variant); border-radius: 10px; padding: 3px; width: 100%; }
 .tab-btn { flex: 1; border: none; background: none; padding: 6px; border-radius: 8px; font-size: 12px; font-weight: 600; color: var(--on-surface-variant); }
 .tab-btn.active { background: var(--surface); color: var(--accent); box-shadow: var(--shadow); }

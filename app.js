@@ -32,6 +32,7 @@ const els = {
   darkModeToggle: $('darkModeToggle'), loadImagesToggle: $('loadImagesToggle'),
   shuffleToggle: $('shuffleToggle'), shuffleOptToggle: $('shuffleOptToggle'),
   fontSizeVal: $('fontSizeVal'), fontSizeSlider: $('fontSizeSlider'), accentSwatches: $('accentSwatches'),
+  autoTimerFullscreenToggle: $('autoTimerFullscreenToggle'),
   resetProgressBtn: $('resetProgressBtn'), loadNewBtn: $('loadNewBtn'),
 
   timerWidget: $('timerWidget'), timerDragHandle: $('timerDragHandle'), timerModeBtn: $('timerModeBtn'),
@@ -69,7 +70,7 @@ const state = {
   isFullscreen: false,
   settings: {
     darkMode: false, loadImages: true, shuffleQuestions: false, shuffleOptions: false,
-    fontSize: 16, accent: ACCENTS[0],
+    fontSize: 16, accent: ACCENTS[0], autoTimerFullscreen: false,
   },
   timer: {
     mode: 'stopwatch', running: false, startTs: 0, elapsedBeforePause: 0,
@@ -574,6 +575,7 @@ function setFullscreen(on) {
   if (on) {
     els.cardFront.appendChild(els.optionsWrap);
     document.documentElement.requestFullscreen?.().catch(() => {});
+    if (state.settings.autoTimerFullscreen) openTimer();
   } else {
     els.stage.insertBefore(els.optionsWrap, els.flipBtn);
     if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
@@ -678,6 +680,10 @@ els.shuffleOptToggle.addEventListener('change', () => {
   state.optionOrderCache.clear();
   persistSettings(); renderOptions();
 });
+els.autoTimerFullscreenToggle.addEventListener('change', () => {
+  state.settings.autoTimerFullscreen = els.autoTimerFullscreenToggle.checked;
+  persistSettings();
+});
 els.fontSizeSlider.addEventListener('input', () => {
   state.settings.fontSize = Number(els.fontSizeSlider.value);
   els.fontSizeVal.textContent = state.settings.fontSize;
@@ -765,21 +771,28 @@ function timerNow() {
 }
 
 function formatTime(ms, withTenths) {
-  const totalSec = ms / 1000;
-  const m = Math.floor(totalSec / 60);
-  const s = Math.floor(totalSec % 60);
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
   const mm = String(m).padStart(2, '0');
   const ss = String(s).padStart(2, '0');
+  if (h > 0) return `${h}:${mm}:${ss}`;
   if (withTenths) {
     const t = Math.floor((ms % 1000) / 100);
     return `${mm}:${ss}.${t}`;
   }
   return `${mm}:${ss}`;
 }
+// Same as formatTime but wraps each ":" in a span so it can blink independently.
+function formatTimeHTML(ms, withTenths) {
+  return formatTime(ms, withTenths).replace(/:/g, '<span class="colon">:</span>');
+}
 
 function renderTimer() {
   const ms = timerNow();
-  els.timerDisplay.textContent = formatTime(ms, state.timer.mode === 'stopwatch');
+  els.timerDisplay.innerHTML = formatTimeHTML(ms, state.timer.mode === 'stopwatch');
+  els.timerDisplay.classList.toggle('ended', state.timer.mode === 'countdown' && ms <= 0);
   const totalSeconds = ms / 1000;
   const secAngle = (totalSeconds % 60) / 60 * 360;
   const minAngle = (totalSeconds / 60 % 60) / 60 * 360;
@@ -790,6 +803,14 @@ function renderTimer() {
     stopTimerAtZero();
   }
   if (state.timer.running) state.timer.rafId = requestAnimationFrame(renderTimer);
+}
+
+// Scales the digital readout's font size to the widget's current width/height
+// so the "size adjustable" resize handle actually looks proportional.
+function scaleTimerWidget() {
+  const rect = els.timerWidget.getBoundingClientRect();
+  const scale = Math.min(rect.width / 230, rect.height / 320);
+  els.timerDisplay.style.fontSize = Math.max(18, Math.min(72, 34 * scale)) + 'px';
 }
 
 function startTimer() {
@@ -871,7 +892,7 @@ els.timerModeBtn.addEventListener('click', () => {
   els.timerAnalog.hidden = !state.timer.analogMode;
   els.timerDigital.hidden = state.timer.analogMode;
 });
-function openTimer() { els.timerWidget.hidden = false; }
+function openTimer() { els.timerWidget.hidden = false; scaleTimerWidget(); }
 function closeTimer() { els.timerWidget.hidden = true; }
 function toggleTimer() { els.timerWidget.hidden ? openTimer() : closeTimer(); }
 els.timerCloseBtn.addEventListener('click', closeTimer);
@@ -1125,12 +1146,16 @@ function enterAnnotate() {
   state.annotate.active = true;
   els.annotateLayer.hidden = false;
   els.annotateToolbar.hidden = false;
+  els.annotateBtn.classList.add('active');
+  els.fsAnnotateBtn.classList.add('active');
   resizeAnnotateCanvas();
 }
 function exitAnnotate() {
   state.annotate.active = false;
   els.annotateLayer.hidden = true;
   els.annotateToolbar.hidden = true;
+  els.annotateBtn.classList.remove('active');
+  els.fsAnnotateBtn.classList.remove('active');
   if (state.recording) stopRecording();
 }
 els.fsAnnotateBtn.addEventListener('click', () => {
@@ -1267,11 +1292,13 @@ function init() {
   els.shuffleOptToggle.checked = state.settings.shuffleOptions;
   els.fontSizeSlider.value = state.settings.fontSize;
   els.fontSizeVal.textContent = state.settings.fontSize;
+  els.autoTimerFullscreenToggle.checked = state.settings.autoTimerFullscreen;
   applyTheme();
   buildAccentSwatches();
   buildAnnotateColors();
   buildClockFace();
   renderTimer();
+  new ResizeObserver(() => scaleTimerWidget()).observe(els.timerWidget);
 
   try {
     const savedJson = localStorage.getItem('mcq_last_json');

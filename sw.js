@@ -1,6 +1,6 @@
 // Offline-first cache for the app shell + KaTeX vendor assets.
 // Bump CACHE_NAME on any shell file change to force clients to refetch.
-const CACHE_NAME = 'mcq-annotate-v1';
+const CACHE_NAME = 'mcq-annotate-v2';
 const SHELL_FILES = [
   './',
   './index.html',
@@ -8,6 +8,10 @@ const SHELL_FILES = [
   './app.js',
   './manifest.webmanifest',
   './icon.svg',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/icon-512-maskable.png',
+  './icons/icon-180.png',
   './vendor/katex/katex.min.css',
   './vendor/katex/katex.min.js',
   './vendor/katex/auto-render.min.js',

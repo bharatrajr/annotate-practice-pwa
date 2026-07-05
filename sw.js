@@ -1,6 +1,6 @@
 // Offline-first cache for the app shell + KaTeX vendor assets.
 // Bump CACHE_NAME on any shell file change to force clients to refetch.
-const CACHE_NAME = 'mcq-annotate-v4';
+const CACHE_NAME = 'mcq-annotate-v5';
 const SHELL_FILES = [
   './',
   './index.html',

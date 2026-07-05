@@ -46,15 +46,9 @@ const els = {
   timerOpacitySlider: $('timerOpacitySlider'),
 
   annotateLayer: $('annotateLayer'), annotateCanvas: $('annotateCanvas'), laserDot: $('laserDot'),
-  penCursor: $('penCursor'), penCursorDot: $('penCursorDot'), penCursorBadge: $('penCursorBadge'),
   annotateToolbar: $('annotateToolbar'), annotateColors: $('annotateColors'), strokeWidth: $('strokeWidth'),
   undoBtn: $('undoBtn'), redoBtn: $('redoBtn'), clearBtn: $('clearBtn'), verticalModeBtn: $('verticalModeBtn'),
   pngExportBtn: $('pngExportBtn'), annotateExitBtn: $('annotateExitBtn'), downloadLink: $('downloadLink'),
-};
-
-const TOOL_EMOJI = {
-  pen: '✏️', highlighter: '🖍️', eraser: '🧽', line: '📏',
-  arrow: '➡️', rect: '▭', ellipse: '◯', text: '🔤',
 };
 
 const OPTION_KEYS = ['A', 'B', 'C', 'D'];
@@ -1104,7 +1098,6 @@ function openTextEditor(pos) {
 }
 
 els.annotateCanvas.addEventListener('pointerdown', (e) => {
-  updatePenCursor(e);
   if (!state.annotate.active || palmRejected(e)) return;
   const tool = state.annotate.tool;
   const pos = getCanvasPos(e);
@@ -1121,7 +1114,6 @@ els.annotateCanvas.addEventListener('pointerdown', (e) => {
   }
 });
 els.annotateCanvas.addEventListener('pointermove', (e) => {
-  updatePenCursor(e);
   if (!state.annotate.active) return;
   if (state.annotate.tool === 'laser') { if (drawingPointer) showLaser(e); return; }
   if (!drawingPointer || !currentStroke) return;
@@ -1159,7 +1151,6 @@ window.addEventListener('pointerup', endStroke);
 window.addEventListener('pointercancel', endStroke);
 els.annotateCanvas.addEventListener('pointerleave', () => {
   if (state.annotate.tool === 'laser') hideLaser();
-  hidePenCursor();
 });
 
 function showLaser(e) {
@@ -1168,23 +1159,6 @@ function showLaser(e) {
   els.laserDot.style.top = e.clientY + 'px';
 }
 function hideLaser() { els.laserDot.hidden = true; }
-
-// Tracks the XP-Pen/stylus tip continuously — on hover as well as while
-// drawing — so presenters can always see exactly where the pen is pointing.
-function updatePenCursor(e) {
-  if (e.pointerType !== 'pen' || !state.annotate.active || state.annotate.tool === 'laser') {
-    hidePenCursor();
-    return;
-  }
-  // A precise dot marks the exact tip position (no glyph orientation to get
-  // "backwards"); a small badge off to the side hints at the active tool.
-  els.penCursorDot.style.background = state.annotate.color;
-  els.penCursorBadge.textContent = TOOL_EMOJI[state.annotate.tool] || '';
-  els.penCursor.style.left = e.clientX + 'px';
-  els.penCursor.style.top = e.clientY + 'px';
-  els.penCursor.hidden = false;
-}
-function hidePenCursor() { els.penCursor.hidden = true; }
 
 document.querySelectorAll('.tool-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -1245,7 +1219,6 @@ function exitAnnotate() {
   els.annotateToolbar.hidden = true;
   els.annotateBtn.classList.remove('active');
   els.fsAnnotateBtn.classList.remove('active');
-  hidePenCursor();
 }
 els.fsAnnotateBtn.addEventListener('click', () => {
   state.annotate.active ? exitAnnotate() : enterAnnotate();

@@ -279,19 +279,6 @@ img { max-width: 100%; }
 @keyframes blink { 50% { opacity: .2; } }
 /* Custom cursor that tracks the stylus tip continuously (hover included) so
    it stays visible in recordings regardless of which annotate tool is active. */
-.pen-cursor {
-  position: fixed; pointer-events: none; z-index: 92;
-  transform: translate(-50%, -50%);
-}
-.pen-cursor-dot {
-  display: block; width: 14px; height: 14px; border-radius: 50%;
-  border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.45), 0 1px 3px rgba(0,0,0,.4);
-}
-.pen-cursor-badge {
-  position: absolute; left: 12px; top: -22px; font-size: 16px;
-  filter: drop-shadow(0 1px 1px rgba(0,0,0,.5));
-}
-
 /* Vertical / shorts framing mode: letterbox stage into a 9:16 rect */
 .vertical-mode .stage {
   max-width: none;

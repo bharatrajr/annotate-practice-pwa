@@ -45,6 +45,9 @@
     <button id="pasteLoadBtn" class="btn primary" hidden>Load Pasted JSON</button>
 
     <div id="loadError" class="load-error" hidden></div>
+
+    <button id="installBtn" class="btn outline install-btn" hidden>📲 Install App</button>
+    <p id="iosInstallHint" class="ios-install-hint" hidden>Tap <strong>Share</strong> ⬆️ then <strong>"Add to Home Screen"</strong></p>
   </div>
   <div class="load-footer">
     <button id="themeToggleLoad" class="icon-btn" title="Toggle dark mode">🌙</button>
@@ -182,7 +185,7 @@
         <button class="icon-btn sm" id="timerCloseBtn">✕</button>
       </div>
     </div>
-    <div class="timer-body">
+    <div class="timer-body" id="timerBody">
       <div id="timerAnalog" class="timer-analog">
         <svg viewBox="0 0 200 200" id="analogSvg">
           <circle cx="100" cy="100" r="96" class="clock-face"/>
@@ -225,6 +228,7 @@
   <div id="annotateLayer" class="annotate-layer" hidden>
     <canvas id="annotateCanvas"></canvas>
     <div id="laserDot" class="laser-dot" hidden></div>
+    <div id="penCursor" class="pen-cursor" hidden></div>
   </div>
 
   <div id="annotateToolbar" class="annotate-toolbar" hidden>
@@ -249,15 +253,8 @@
     <div class="tool-group">
       <button class="icon-btn sm" id="verticalModeBtn" title="Toggle 9:16 shorts frame">▯</button>
       <button class="icon-btn sm" id="pngExportBtn" title="Export drawing as PNG">⬇</button>
-      <button class="icon-btn sm" id="micToggleBtn" title="Include microphone narration when recording">🎤</button>
-      <button class="btn record-btn" id="recordBtn" title="Record this tab (pick 'This Tab' + share audio for narration)">⏺ Record</button>
       <button class="icon-btn sm" id="annotateExitBtn" title="Exit annotate mode">✕</button>
     </div>
-  </div>
-
-  <div id="recordBanner" class="record-banner" hidden>
-    <span class="rec-dot"></span> Recording <span id="recTime">00:00</span>
-    <button class="btn-link" id="recordStopBtn">Stop</button>
   </div>
 
 </div>

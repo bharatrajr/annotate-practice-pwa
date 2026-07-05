@@ -9,6 +9,7 @@ const els = {
   loadScreen: $('loadScreen'), dropZone: $('dropZone'), fileInput: $('fileInput'),
   pasteToggleBtn: $('pasteToggleBtn'), sampleBtn: $('sampleBtn'), pasteArea: $('pasteArea'),
   pasteLoadBtn: $('pasteLoadBtn'), loadError: $('loadError'), themeToggleLoad: $('themeToggleLoad'),
+  installBtn: $('installBtn'), iosInstallHint: $('iosInstallHint'),
 
   appShell: $('appShell'), topBar: $('topBar'), backBtn: $('backBtn'),
   titleText: $('titleText'), subText: $('subText'), bookmarkBtn: $('bookmarkBtn'),
@@ -35,7 +36,7 @@ const els = {
   autoTimerFullscreenToggle: $('autoTimerFullscreenToggle'),
   resetProgressBtn: $('resetProgressBtn'), loadNewBtn: $('loadNewBtn'),
 
-  timerWidget: $('timerWidget'), timerDragHandle: $('timerDragHandle'), timerModeBtn: $('timerModeBtn'),
+  timerWidget: $('timerWidget'), timerBody: $('timerBody'), timerDragHandle: $('timerDragHandle'), timerModeBtn: $('timerModeBtn'),
   timerCloseBtn: $('timerCloseBtn'), timerAnalog: $('timerAnalog'), analogSvg: $('analogSvg'),
   clockTicks: $('clockTicks'), clockNumbers: $('clockNumbers'), handMinute: $('handMinute'), handSecond: $('handSecond'),
   timerDigital: $('timerDigital'), timerDisplay: $('timerDisplay'), countdownSetup: $('countdownSetup'),
@@ -43,11 +44,15 @@ const els = {
   timerResetBtn: $('timerResetBtn'), autoTimerToggle: $('autoTimerToggle'),
 
   annotateLayer: $('annotateLayer'), annotateCanvas: $('annotateCanvas'), laserDot: $('laserDot'),
+  penCursor: $('penCursor'),
   annotateToolbar: $('annotateToolbar'), annotateColors: $('annotateColors'), strokeWidth: $('strokeWidth'),
   undoBtn: $('undoBtn'), redoBtn: $('redoBtn'), clearBtn: $('clearBtn'), verticalModeBtn: $('verticalModeBtn'),
-  pngExportBtn: $('pngExportBtn'), micToggleBtn: $('micToggleBtn'), recordBtn: $('recordBtn'),
-  annotateExitBtn: $('annotateExitBtn'), recordBanner: $('recordBanner'), recTime: $('recTime'),
-  recordStopBtn: $('recordStopBtn'), downloadLink: $('downloadLink'),
+  pngExportBtn: $('pngExportBtn'), annotateExitBtn: $('annotateExitBtn'), downloadLink: $('downloadLink'),
+};
+
+const TOOL_EMOJI = {
+  pen: '✏️', highlighter: '🖍️', eraser: '🧽', line: '📏',
+  arrow: '➡️', rect: '▭', ellipse: '◯', text: '🔤',
 };
 
 const OPTION_KEYS = ['A', 'B', 'C', 'D'];
@@ -78,9 +83,8 @@ const state = {
   },
   annotate: {
     active: false, tool: 'pen', color: ANNOTATE_COLORS[0],
-    strokes: [], redo: [], wantMic: false,
+    strokes: [], redo: [],
   },
-  recording: false, recorder: null, recTimerId: null,
   deferredInstallPrompt: null,
 };
 
@@ -572,6 +576,7 @@ function setFullscreen(on) {
   state.isFullscreen = on;
   document.body.classList.toggle('fullscreen-mode', on);
   els.fsTopBar.hidden = !on;
+  els.timerWidget.classList.toggle('fs-clean', on);
   if (on) {
     els.cardFront.appendChild(els.optionsWrap);
     document.documentElement.requestFullscreen?.().catch(() => {});
@@ -860,6 +865,11 @@ function playBeep() {
 els.timerStartBtn.addEventListener('click', startTimer);
 els.timerPauseBtn.addEventListener('click', pauseTimer);
 els.timerResetBtn.addEventListener('click', () => resetTimer(false));
+// In fullscreen "clean" mode the controls are hidden — tap the clock itself instead.
+els.timerBody.addEventListener('click', () => {
+  if (!els.timerWidget.classList.contains('fs-clean')) return;
+  state.timer.running ? pauseTimer() : startTimer();
+});
 
 document.querySelectorAll('.tab-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -1044,6 +1054,7 @@ function openTextEditor(pos) {
 }
 
 els.annotateCanvas.addEventListener('pointerdown', (e) => {
+  updatePenCursor(e);
   if (!state.annotate.active || palmRejected(e)) return;
   const tool = state.annotate.tool;
   const pos = getCanvasPos(e);
@@ -1060,6 +1071,7 @@ els.annotateCanvas.addEventListener('pointerdown', (e) => {
   }
 });
 els.annotateCanvas.addEventListener('pointermove', (e) => {
+  updatePenCursor(e);
   if (!state.annotate.active) return;
   if (state.annotate.tool === 'laser') { if (drawingPointer) showLaser(e); return; }
   if (!drawingPointer || !currentStroke) return;
@@ -1088,7 +1100,10 @@ function endStroke() {
 }
 window.addEventListener('pointerup', endStroke);
 window.addEventListener('pointercancel', endStroke);
-els.annotateCanvas.addEventListener('pointerleave', () => { if (state.annotate.tool === 'laser') hideLaser(); });
+els.annotateCanvas.addEventListener('pointerleave', () => {
+  if (state.annotate.tool === 'laser') hideLaser();
+  hidePenCursor();
+});
 
 function showLaser(e) {
   els.laserDot.hidden = false;
@@ -1096,6 +1111,20 @@ function showLaser(e) {
   els.laserDot.style.top = e.clientY + 'px';
 }
 function hideLaser() { els.laserDot.hidden = true; }
+
+// Tracks the XP-Pen/stylus tip continuously — on hover as well as while
+// drawing — so presenters can always see exactly where the pen is pointing.
+function updatePenCursor(e) {
+  if (e.pointerType !== 'pen' || !state.annotate.active || state.annotate.tool === 'laser') {
+    hidePenCursor();
+    return;
+  }
+  els.penCursor.textContent = TOOL_EMOJI[state.annotate.tool] || '✏️';
+  els.penCursor.style.left = e.clientX + 'px';
+  els.penCursor.style.top = e.clientY + 'px';
+  els.penCursor.hidden = false;
+}
+function hidePenCursor() { els.penCursor.hidden = true; }
 
 document.querySelectorAll('.tool-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -1156,89 +1185,19 @@ function exitAnnotate() {
   els.annotateToolbar.hidden = true;
   els.annotateBtn.classList.remove('active');
   els.fsAnnotateBtn.classList.remove('active');
-  if (state.recording) stopRecording();
+  hidePenCursor();
 }
 els.fsAnnotateBtn.addEventListener('click', () => {
   state.annotate.active ? exitAnnotate() : enterAnnotate();
 });
 els.annotateExitBtn.addEventListener('click', exitAnnotate);
 
-// ═══════════════════════════════════════════════════════════════════════
-// Screen recording (tab capture) for YT Shorts / Instagram teaching clips
-// ═══════════════════════════════════════════════════════════════════════
-function pickMime() {
-  const candidates = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
-  return candidates.find((c) => window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) || '';
-}
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   els.downloadLink.href = url; els.downloadLink.download = filename;
   els.downloadLink.click();
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
-function stopAllTracks(stream) { stream?.getTracks().forEach((t) => t.stop()); }
-
-let displayStreamRef = null, mixCtxRef = null, recStartTs = 0;
-
-async function startRecording() {
-  if (!navigator.mediaDevices?.getDisplayMedia) { showToast('Screen recording is not supported in this browser'); return; }
-  try {
-    const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: true });
-    displayStreamRef = displayStream;
-    let finalStream = displayStream;
-
-    if (state.annotate.wantMic) {
-      try {
-        const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const dest = audioCtx.createMediaStreamDestination();
-        if (displayStream.getAudioTracks().length) audioCtx.createMediaStreamSource(displayStream).connect(dest);
-        audioCtx.createMediaStreamSource(micStream).connect(dest);
-        finalStream = new MediaStream([...displayStream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
-        mixCtxRef = { audioCtx, micStream };
-      } catch (e) { showToast('Mic permission denied — recording without narration'); }
-    }
-
-    const mimeType = pickMime();
-    const recorder = new MediaRecorder(finalStream, mimeType ? { mimeType } : undefined);
-    const chunks = [];
-    recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-    recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: mimeType || 'video/webm' });
-      downloadBlob(blob, `mcq-teaching-${Date.now()}.webm`);
-      stopAllTracks(finalStream); stopAllTracks(displayStream);
-      mixCtxRef?.audioCtx?.close();
-      mixCtxRef?.micStream && stopAllTracks(mixCtxRef.micStream);
-      mixCtxRef = null; displayStreamRef = null;
-    };
-    recorder.start();
-    state.recorder = recorder;
-    state.recording = true;
-    recStartTs = Date.now();
-    displayStream.getVideoTracks()[0].addEventListener('ended', () => stopRecording());
-
-    els.recordBtn.textContent = '⏹ Stop'; els.recordBtn.classList.add('recording');
-    els.recordBanner.hidden = false;
-    state.recTimerId = setInterval(() => {
-      els.recTime.textContent = formatTime(Date.now() - recStartTs, false);
-    }, 250);
-  } catch (err) {
-    if (err.name !== 'NotAllowedError') showToast('Could not start recording: ' + err.message);
-  }
-}
-function stopRecording() {
-  if (state.recorder && state.recorder.state !== 'inactive') state.recorder.stop();
-  state.recording = false;
-  clearInterval(state.recTimerId);
-  els.recordBtn.textContent = '⏺ Record'; els.recordBtn.classList.remove('recording');
-  els.recordBanner.hidden = true;
-}
-els.recordBtn.addEventListener('click', () => { state.recording ? stopRecording() : startRecording(); });
-els.recordStopBtn.addEventListener('click', stopRecording);
-els.micToggleBtn.addEventListener('click', () => {
-  state.annotate.wantMic = !state.annotate.wantMic;
-  els.micToggleBtn.classList.toggle('active', state.annotate.wantMic);
-});
 
 // ═══════════════════════════════════════════════════════════════════════
 // Keyboard shortcuts
@@ -1271,10 +1230,37 @@ document.addEventListener('keydown', (e) => {
 // ═══════════════════════════════════════════════════════════════════════
 // PWA install + service worker
 // ═══════════════════════════════════════════════════════════════════════
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  state.deferredInstallPrompt = e;
-});
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+if (!isStandalone) {
+  if (isIOS) {
+    // Safari never fires beforeinstallprompt — there's no programmatic install API,
+    // so just show the manual steps.
+    els.installBtn.hidden = false;
+    els.installBtn.textContent = '📲 Add to Home Screen';
+    els.installBtn.addEventListener('click', () => {
+      els.iosInstallHint.hidden = !els.iosInstallHint.hidden;
+    });
+  } else {
+    // Chrome/Edge/Android: capture the real prompt and trigger it from our own button
+    // (calling preventDefault() without ever calling .prompt() would hide install entirely).
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      state.deferredInstallPrompt = e;
+      els.installBtn.hidden = false;
+    });
+    els.installBtn.addEventListener('click', async () => {
+      if (!state.deferredInstallPrompt) return;
+      state.deferredInstallPrompt.prompt();
+      await state.deferredInstallPrompt.userChoice;
+      state.deferredInstallPrompt = null;
+      els.installBtn.hidden = true;
+    });
+    window.addEventListener('appinstalled', () => { els.installBtn.hidden = true; });
+  }
+}
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(() => {});
